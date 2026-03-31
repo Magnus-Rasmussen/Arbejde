@@ -1,0 +1,59 @@
+{
+  "n_rows": 741,
+  "head": [
+    {
+      "_YM": "202302",
+      "_BM": "Udvalgte population",
+      "overenskomst": "046",
+      "stilling": "04601",
+      "klassificering": "0460102",
+      "hoveder": 68,
+      "bhhel": 68,
+      "bhdel": 0,
+      "bhid1": 0,
+      "bhid2": 0,
+      "bhid3": 0,
+      "bhid4": 0,
+      "bpt": 0,
+      "gnsalle": 37.06177754945785,
+      "gnsmnd": 37.06177754945785,
+      "gnsdel": null
+    },
+    {
+      "_YM": "202302",
+      "_BM": "Udvalgte population",
+      "overenskomst": "054",
+      "stilling": "05402",
+      "klassificering": "0540229",
+      "hoveder": 15,
+      "bhhel": 0,
+      "bhdel": 15,
+      "bhid1": 0,
+      "bhid2": 0,
+      "bhid3": 0,
+      "bhid4": 15,
+      "bpt": 0,
+      "gnsalle": 6.231919771262215,
+      "gnsmnd": 6.231919771262215,
+      "gnsdel": 6.231919771262215
+    },
+    {
+      "_YM": "202302",
+      "_BM": "Udvalgte population",
+      "overenskomst": "054",
+      "stilling": "05402",
+      "klassificering": null,
+      "hoveder": 41,
+      "bhhel": 0,
+      "bhdel": 41,
+      "bhid1": 0,
+      "bhid2": 0,
+      "bhid3": 0,
+      "bhid4": 41,
+      "bpt": 0,
+      "gnsalle": 7.1677608322858575,
+      "gnsmnd": 7.1677608322858575,
+      "gnsdel": 7.1677608322858575
+    }
+  ]
+}

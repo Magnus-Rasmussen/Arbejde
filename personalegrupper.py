@@ -78,13 +78,22 @@ def _pick_non_doublecounting_subset(
     if not candidates:
         return candidates
 
-    # Hvis vi allerede har filtreret på stilling, så er stilling typisk ikke None.
-    # Her kan både klass=None (subtotal) og klass!=None (detaljer) findes.
+    # Hvis vi allerede har filtreret på stilling, kan der for *nogle* stillinger
+    # findes subtotaler (klass=None), mens andre kun findes på klass-niveau.
+    # For at undgå både dobbelt-tælling og at vi "taber" stillinger, vælger vi
+    # derfor niveau pr. stilling:
+    # - hvis klass=None findes for en given stilling -> brug kun den/dem
+    # - ellers -> brug alle rækker for den stilling (klass-niveau summerer til total)
     if stillinger_filter_applied:
-        klass_none = [r for r in candidates if _get_code(r, "klassificering") is None]
-        if klass_none:
-            return klass_none
-        return candidates
+        by_stilling: dict[str | None, list[Mapping[str, Any]]] = {}
+        for r in candidates:
+            by_stilling.setdefault(_get_code(r, "stilling"), []).append(r)
+
+        picked: list[Mapping[str, Any]] = []
+        for _, rs in by_stilling.items():
+            klass_none = [r for r in rs if _get_code(r, "klassificering") is None]
+            picked.extend(klass_none or rs)
+        return picked
 
     # Ellers: prioriter mest aggregerede rækker.
     level0 = [
@@ -277,49 +286,49 @@ GROUP_SPECS: dict[str, dict[str, Any]] = {
         "overenskomst": "066",
         "stillinger": ["06609", "06608", "06610", "06618", "06611", "06620", "06617"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Overlæger": {
         "overenskomst": "066",
         "stillinger": ["06605", "06606"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Speciallæger": {
         "overenskomst": "113",
         "stillinger": ["11304", "11310"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Uddannelseslæger": {
         "overenskomst": "113",
         "stillinger": ["11301", "11308"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Ledende sygeplejersker": {
         "overenskomst": "301",
         "stillinger": ["30101"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Social- og sundhedsassistenter": {
         "overenskomst": "283",
         "stillinger": ["28305"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Sundhedsadministrativt personale": {
         "overenskomst": "055",
         "stillinger": ["05518", "05513", "05514", "05519"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Socialpædagoger": {
         "overenskomst": "078",
         "stillinger": ["07801"],
         "klassificeringer": None,
-        "klass_none_mode": "require",
+        "klass_none_mode": "allow",
     },
     "Omsorgs- og pædagogmedhjælpere m.fl.": {
         "overenskomst": "293",
@@ -364,6 +373,10 @@ COMBO_GROUPS: dict[str, list[MatchSpec]] = {
         MatchSpec(overenskomst="296", stillinger=["29602"], klassificeringer=None, klass_none_mode="require"),
         MatchSpec(overenskomst="296", stillinger=["29601"], klassificeringer=["2960101"], klass_none_mode="require"),
         MatchSpec(overenskomst="296", stillinger=["29610"], klassificeringer=["2961001"], klass_none_mode="require"),
+    ],
+    "Rengørings- og husassistenter": [
+        MatchSpec(overenskomst="284", stillinger=["28401"], klassificeringer=None, klass_none_mode="allow"),
+        MatchSpec(overenskomst="289", stillinger=["28901"], klassificeringer=None, klass_none_mode="allow"),
     ],
 }
 
