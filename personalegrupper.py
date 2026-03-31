@@ -243,6 +243,154 @@ def sum_matches_for_ym(
     return total
 
 
+def weighted_avg_group_for_ym(
+    rows: Iterable[Mapping[str, Any]],
+    ym: str,
+    *,
+    overenskomst: str,
+    stillinger: Sequence[str] | None,
+    klassificeringer: Sequence[str] | None,
+    klass_none_mode: str = "require",
+    value_key: str = "gnsmnd",
+    weight_key: str = "hoveder",
+) -> float:
+    """Vægtet gennemsnit for en gruppe (fx gnsmnd vægtet med hoveder).
+
+    Bruges når API'et returnerer gennemsnit pr. række, og vi skal aggregere flere rækker.
+    """
+
+    overenskomst = str(overenskomst)
+    stillinger_set = {str(s) for s in stillinger} if stillinger else None
+    klass_set = {str(k) for k in klassificeringer} if klassificeringer else None
+
+    base = _filter_base(rows, ym)
+
+    def matches_row(r: Mapping[str, Any]) -> bool:
+        if _get_code(r, "overenskomst") != overenskomst:
+            return False
+
+        stilling = _get_code(r, "stilling")
+        if stillinger_set is not None and stilling not in stillinger_set:
+            return False
+
+        klass = _get_code(r, "klassificering")
+        if klass_set is not None:
+            return klass in klass_set
+
+        if klass_none_mode == "require":
+            return klass is None
+        if klass_none_mode == "allow":
+            return True
+        if klass_none_mode == "overenskomst_total":
+            # håndteres særskilt nedenfor
+            return False
+        raise ValueError(f"Unknown klass_none_mode: {klass_none_mode!r}")
+
+    # Sær-tilfælde: hvis vi eksplicit ønsker overenskomst-total, så brug den mest aggregerede række
+    if klass_none_mode == "overenskomst_total":
+        candidates = [
+            r
+            for r in base
+            if _get_code(r, "overenskomst") == overenskomst
+            and _get_code(r, "stilling") is None
+            and _get_code(r, "klassificering") is None
+        ]
+        if candidates:
+            # Der burde kun være én; tag første
+            return _get_value(candidates[0], value_key)
+        # fallback: vægtet gennemsnit på tværs af alt for overenskomsten
+        candidates = [r for r in base if _get_code(r, "overenskomst") == overenskomst]
+        candidates = _pick_non_doublecounting_subset(candidates, stillinger_filter_applied=False)
+    else:
+        candidates = [r for r in base if matches_row(r)]
+        if klass_set is None and klass_none_mode == "allow":
+            candidates = _pick_non_doublecounting_subset(
+                candidates,
+                stillinger_filter_applied=stillinger_set is not None,
+            )
+        if not candidates and klass_set is None and klass_none_mode == "require":
+            relaxed = [
+                r
+                for r in base
+                if _get_code(r, "overenskomst") == overenskomst
+                and (stillinger_set is None or _get_code(r, "stilling") in stillinger_set)
+            ]
+            candidates = _pick_non_doublecounting_subset(
+                relaxed,
+                stillinger_filter_applied=stillinger_set is not None,
+            )
+
+    w_sum = 0.0
+    vw_sum = 0.0
+    for r in candidates:
+        w = _get_value(r, weight_key)
+        v = _get_value(r, value_key)
+        if w <= 0:
+            continue
+        w_sum += w
+        vw_sum += v * w
+
+    return (vw_sum / w_sum) if w_sum else 0.0
+
+
+def weighted_avg_matches_for_ym(
+    rows: Iterable[Mapping[str, Any]],
+    ym: str,
+    matches: Sequence[MatchSpec | Mapping[str, Any]],
+    *,
+    value_key: str = "gnsmnd",
+    weight_key: str = "hoveder",
+) -> float:
+    """Vægtet gennemsnit på tværs af flere MatchSpec'er."""
+
+    w_sum = 0.0
+    vw_sum = 0.0
+    for m in matches:
+        if isinstance(m, Mapping):
+            spec = MatchSpec(
+                overenskomst=str(m["overenskomst"]),
+                stillinger=m.get("stillinger"),
+                klassificeringer=m.get("klassificeringer"),
+                klass_none_mode=str(m.get("klass_none_mode", "require")),
+            )
+        else:
+            spec = m
+
+        # beregn vægt og vægtet værdi ved at iterere kandidater via weighted_avg_group_for_ym
+        # (vi kan ikke blot kombinere gennemsnit uden vægte)
+        base = _filter_base(rows, ym)
+        # genbrug match-logik ved at filtrere kandidater på samme måde som sum_group_for_ym
+        # og beregne vægtet gennemsnit for den delgruppe
+        avg = weighted_avg_group_for_ym(
+            base,
+            ym,
+            overenskomst=spec.overenskomst,
+            stillinger=spec.stillinger,
+            klassificeringer=spec.klassificeringer,
+            klass_none_mode=spec.klass_none_mode,
+            value_key=value_key,
+            weight_key=weight_key,
+        )
+
+        # Brug total vægt for delgruppen til at kombinere gennemsnit korrekt
+        weight = sum_group_for_ym(
+            rows,
+            ym,
+            overenskomst=spec.overenskomst,
+            stillinger=spec.stillinger,
+            klassificeringer=spec.klassificeringer,
+            klass_none_mode=spec.klass_none_mode,
+            value_key=weight_key,
+        )
+
+        if weight <= 0:
+            continue
+        w_sum += weight
+        vw_sum += avg * weight
+
+    return (vw_sum / w_sum) if w_sum else 0.0
+
+
 """Gruppe-definitioner (Figur 3).
 
 Disse er sat op til at matche skabelonen i de screenshots, du har vedhæftet:
@@ -389,4 +537,6 @@ __all__ = [
     "sum_group_for_ym",
     "sum_matches_for_ym",
     "sum_overenskomst_total_for_ym",
+    "weighted_avg_group_for_ym",
+    "weighted_avg_matches_for_ym",
 ]
