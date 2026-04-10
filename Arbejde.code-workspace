@@ -3,13 +3,6 @@
 		{
 			"name": "Arbejde",
 			"path": "."
-		},
-		{
-			"path": "../Exceltræk_KRL"
-		},
-		{
-			"name": "Excel-KRL",
-			"path": "../Excel,KRL/Excel-KRL"
 		}
 	]
 }
