@@ -3,6 +3,9 @@
 		{
 			"name": "Arbejde",
 			"path": "."
+		},
+		{
+			"path": "../Exceltræk_KRL"
 		}
 	]
 }
